@@ -1,5 +1,9 @@
-import ConsolesLocClicker.GameConfig;
-import ConsolesLocClicker.Stats;
+import ConsolesLocClicker.core.GameConfig;
+import ConsolesLocClicker.persistence.SaveManager;
+import ConsolesLocClicker.core.Stats;
+import ConsolesLocClicker.events.catalog.NegativeEventCatalog;
+import ConsolesLocClicker.events.catalog.RepairEventCatalog;
+import java.nio.file.Files;
 
 /**
  * Prueba de balanceo SIN interfaz (para Carlos y José).
@@ -48,7 +52,94 @@ public class BalanceTest {
 
     static String fmt(int seg) { return String.format("%d:%02d", seg / 60, seg % 60); }
 
+    static void comprobarNuevasMecanicas() {
+        Stats s = new Stats();
+        for (int i = 0; i < GameConfig.BONUS_CLICKS; i++) s.click();
+        if (s.getBonusesAwarded() != 1 || s.getBonusLoc() != GameConfig.BONUS_LOC) {
+            throw new AssertionError("el bonus por racha no se otorgo correctamente");
+        }
+        s.setLoc(10_000);
+        if (!s.buyQuality() || s.getDefectChancePercent() != 100 - GameConfig.QUALITY_DEFECT_REDUCTION_PERCENT) {
+            throw new AssertionError("la inversion en calidad no reduce el riesgo de defectos");
+        }
+        s.setLocMade(GameConfig.COMPANY_FIRST_LEVEL_LOC);
+        if (s.getCompanyLevel() != 2 || s.getCompanyProgressPercent() != 0) {
+            throw new AssertionError("la progresion de empresa no escala correctamente");
+        }
+        s.getProducers()[GameConfig.WIN_ITEM].setAmount(GameConfig.WIN_AMOUNT);
+        if (!s.isPhaseComplete()) throw new AssertionError("CMMI no completa la fase 1");
+        s.advancePhase();
+        if (s.getPhase() != 2 || s.getPhaseTargetLoc() <= s.getPhaseStartLoc()) {
+            throw new AssertionError("la fase 2 no crea un objetivo creciente");
+        }
+        if (s.getPlannedLoc(10) != 10 * GameConfig.PLAN_LOC_PER_SECOND) {
+            throw new AssertionError("el plan acumulado no coincide con el ritmo configurado");
+        }
+        Stats stability = new Stats();
+        stability.getProducers()[3].setAmount(1);
+        int normalProduction = stability.getEffectiveProduction();
+        stability.damageStability(60);
+        if (stability.getEffectiveProduction() >= normalProduction) {
+            throw new AssertionError("la estabilidad baja no reduce la produccion");
+        }
+        stability.recoverStability(80);
+        if (stability.getStability() <= GameConfig.STABILITY_START
+                || stability.getEffectiveProduction() <= normalProduction) {
+            throw new AssertionError("la estabilidad alta no mejora la produccion");
+        }
+        Stats incident = new Stats();
+        incident.setLoc(10_000);
+        int beforeIncident = incident.getLoc();
+        int lost = incident.applyUnexpectedEvent();
+        if (lost <= 0 || incident.getLoc() >= beforeIncident
+                || incident.getStability() != GameConfig.STABILITY_START - GameConfig.UNEXPECTED_STABILITY_LOSS
+                || incident.getTechnicalDebt() != GameConfig.DEBT_DEFECT_PENALTY) {
+            throw new AssertionError("el evento inesperado no aplica su penalizacion completa");
+        }
+        if (RepairEventCatalog.size() < 2 || NegativeEventCatalog.size() < 3) {
+            throw new AssertionError("los catalogos de eventos no contienen las opciones esperadas");
+        }
+        int originalPrice = incident.getPrice(incident.getKeyboard());
+        incident.applyPriceSurge();
+        if (incident.getPrice(incident.getKeyboard()) <= originalPrice) {
+            throw new AssertionError("la subida de precios no afecta la tienda");
+        }
+        incident.getProducers()[0].setAmount(1);
+        int productionBeforeCut = incident.getEffectiveProduction();
+        incident.applyBudgetCut();
+        if (incident.getEffectiveProduction() >= productionBeforeCut) {
+            throw new AssertionError("el recorte presupuestario no afecta la produccion");
+        }
+        System.out.println("MECANICAS NUEVAS: OK");
+    }
+
+    static void comprobarGuardado() throws Exception {
+        Stats original = new Stats();
+        original.setLoc(1234);
+        original.setLocMade(5678);
+        original.setRawClicks(42);
+        original.getQuality().setAmount(2);
+        SaveManager.save("Prueba balance", original);
+        Stats loaded = new Stats();
+        SaveManager.load("Prueba balance", loaded);
+        if (loaded.getLoc() != 1234 || loaded.getLocMade() != 5678
+                || loaded.getRawClicks() != 42 || loaded.getQuality().getAmount() != 2) {
+            throw new AssertionError("el guardado no restaura el estado completo");
+        }
+        Files.deleteIfExists(SaveManager.DIRECTORY.resolve("Prueba_balance.properties"));
+        try (java.util.stream.Stream<java.nio.file.Path> files = Files.list(SaveManager.DIRECTORY)) {
+            if (!files.findAny().isPresent()) Files.deleteIfExists(SaveManager.DIRECTORY);
+        }
+        System.out.println("GUARDADO: OK");
+    }
+
     public static void main(String[] args) {
+        comprobarNuevasMecanicas();
+        try {
+            comprobarGuardado();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         System.out.println("Tiempo para ganar (min:seg)  - objetivo: entre 3:00 y 5:00");
         System.out.println("estrategia  clics/s   normal   ignora la mitad de defectos   ignora TODOS (solo informativo)");
         boolean ok = true;

@@ -1,5 +1,6 @@
-import ConsolesLocClicker.Stats;
-import ConsolesLocClicker.DefectManager;
+import ConsolesLocClicker.core.Stats;
+import ConsolesLocClicker.core.GameConfig;
+import ConsolesLocClicker.events.DefectManager;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -41,25 +42,31 @@ public class UiSmokeTest {
         new File("/tmp/shots").mkdirs();
         new File("bitacora_defectos_psp.csv").delete();
         robot = new Robot();
-        SwingUtilities.invokeAndWait(() -> ConsolesLocClicker.Frame.main(new String[0]));
+        SwingUtilities.invokeAndWait(() -> ConsolesLocClicker.ui.Frame.main(new String[0]));
         Thread.sleep(1500);
         JFrame f = mainFrame();
         check(f != null && f.isVisible(), "ventana principal visible");
+        JButton start = null;
+        for (JButton b : buttons(f)) if (b.getText().contains("Comenzar proyecto")) start = b;
+        check(start != null, "contexto inicial visible");
+        click(start);
+        Thread.sleep(300);
 
         // 1) clics reales en el icono
         JButton clicker = null;
         for (JButton b : buttons(f)) if (b.getIcon() != null) clicker = b;
         for (int i = 0; i < 120; i++) click(clicker);
         Thread.sleep(300);
-        Field sf = ConsolesLocClicker.Frame.class.getDeclaredField("stats"); sf.setAccessible(true);
-        ConsolesLocClicker.Frame frameObj = null;
+        Field sf = ConsolesLocClicker.ui.Frame.class.getDeclaredField("stats"); sf.setAccessible(true);
+        ConsolesLocClicker.ui.Frame frameObj = null;
         // obtener la instancia de Frame a través del KeyListener registrado en el JTabbedPane
         JTabbedPane pane = null;
         for (Component k : f.getContentPane().getComponents()) if (k instanceof JTabbedPane) pane = (JTabbedPane) k;
-        frameObj = (ConsolesLocClicker.Frame) pane.getKeyListeners()[0];
+        frameObj = (ConsolesLocClicker.ui.Frame) pane.getKeyListeners()[0];
         Stats stats = (Stats) sf.get(frameObj);
         check(stats.getRawClicks() == 120, "120 clics registrados (" + stats.getRawClicks() + ")");
-        check(stats.getLoc() == 120, "120 LOC tras 120 clics (" + stats.getLoc() + ")");
+        int expectedLoc = 120 + (120 / GameConfig.BONUS_CLICKS) * GameConfig.BONUS_LOC;
+        check(stats.getLoc() == expectedLoc, expectedLoc + " LOC tras 120 clics (" + stats.getLoc() + ")");
         shot("01_juego");
 
         // 2) comprar un Becario desde la tienda
@@ -67,7 +74,7 @@ public class UiSmokeTest {
         for (JButton b : buttons(f)) if (b.getText().contains("Becario")) becario = b;
         click(becario);
         check(stats.getProducers()[0].getAmount() == 1, "compra de Becario por clic en la tienda");
-        check(stats.getLoc() == 105, "LOC descontadas: 120-15=105 (" + stats.getLoc() + ")");
+        check(stats.getLoc() == expectedLoc - 15, "LOC descontadas tras comprar Becario: " + (expectedLoc - 15) + " (" + stats.getLoc() + ")");
 
         // 3) comprar teclado y verificar poder de clic
         JButton teclado = null;
@@ -85,12 +92,15 @@ public class UiSmokeTest {
         check(dlg != null, "apareció el diálogo de defecto: " + (dlg != null ? dlg.getTitle() : "-"));
         Thread.sleep(500);
         shot("02_defecto");
+        JButton analizar = null;
+        for (JButton b : buttons(dlg)) if (b.getText().startsWith("Iniciar:")) analizar = b;
+        check(analizar != null, "el defecto asigna un minijuego obligatorio");
+        click(analizar);
         // el jugador puede seguir haciendo clic con el diálogo abierto (no modal)
         int antes = stats.getRawClicks();
         click(clicker);
         check(stats.getRawClicks() == antes + 1, "no modal: se puede seguir haciendo clic con el defecto abierto");
-        int locAntes = stats.getLoc();
-        Thread.sleep(5500);
+        Thread.sleep(10500);
         boolean cerrado = true;
         for (Window w : Window.getWindows()) if (w instanceof JDialog && w.isVisible()) cerrado = false;
         check(cerrado, "el diálogo se cierra solo a los 5 s");
@@ -100,15 +110,24 @@ public class UiSmokeTest {
         check(!logTxt.contains("-0 LOC"), "la penalización del Tipo 20 no es 0 LOC");
         shot("03_penalizacion");
 
-        // 5) forzar otro defecto con el panel dev y PARCHARLO
-        Field df = ConsolesLocClicker.Frame.class.getDeclaredField("defects"); df.setAccessible(true);
+        // 5) forzar otro defecto y resolverlo seleccionando la línea correcta
+        Field df = ConsolesLocClicker.ui.Frame.class.getDeclaredField("defects"); df.setAccessible(true);
         DefectManager dm = (DefectManager) df.get(frameObj);
         SwingUtilities.invokeAndWait(dm::triggerNow);
         Thread.sleep(600);
-        JButton parchear = null;
-        for (Window w : Window.getWindows()) if (w instanceof JDialog && w.isVisible()) for (JButton b : buttons(w)) if (b.getText().equals("Parchear")) parchear = b;
-        check(parchear != null, "segundo defecto forzado con el botón Parchear visible");
-        click(parchear);
+        JButton analizarSegundo = null;
+        for (Window w : Window.getWindows()) if (w instanceof JDialog && w.isVisible())
+            for (JButton b : buttons(w)) if (b.getText().startsWith("Iniciar:")) analizarSegundo = b;
+        check(analizarSegundo != null, "segundo defecto abre el minijuego de código");
+        click(analizarSegundo);
+        for (int i = 0; i < 5 && stats.getDefectsPatched() == 0; i++) {
+            for (Window w : Window.getWindows()) if (w instanceof JDialog && w.isVisible()) {
+                List<JButton> lines = new ArrayList<>();
+                for (JButton b : buttons(w)) if (b.getText().startsWith("line ")) lines.add(b);
+                if (i < lines.size()) click(lines.get(i));
+                else for (JButton b : buttons(w)) if (b.getText().equals("FALLA")) click(b);
+            }
+        }
         Thread.sleep(300);
         check(stats.getDefectsFound() == 2 && stats.getDefectsPatched() == 1, "segundo defecto parchado a tiempo (" + stats.getDefectsPatched() + "/2)");
 
@@ -118,7 +137,13 @@ public class UiSmokeTest {
         for (JButton b : buttons(f)) if (b.getText().contains("Certificación")) meta = b;
         click(meta);
         Thread.sleep(800);
-        check(stats.isFinished(), "comprar CMMI Nivel 5 termina la partida");
+        JButton escalar = null;
+        for (Window w : Window.getWindows()) if (w instanceof JDialog && w.isVisible()) {
+            for (JButton b : buttons(w)) if (b.getText().contains("Escalar empresa")) escalar = b;
+        }
+        check(escalar != null, "apareció la transición a la fase 2");
+        click(escalar);
+        check(stats.getPhase() == 2 && !stats.isPhaseComplete(), "la empresa continúa en la fase 2");
         shot("04_victoria");
 
         // 7) bitácora PSP

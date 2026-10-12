@@ -1,4 +1,4 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.core;
 
 /** Una mejora comprable. El precio crece de forma geométrica: base * growth^cantidad. */
 public class Item {

@@ -1,4 +1,4 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.core;
 
 /** Cronómetro de la partida (se mantiene del repo original, solo se agregó getTotalSeconds). */
 public class LocTimer {

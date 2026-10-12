@@ -1,4 +1,11 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.ui;
+
+import ConsolesLocClicker.core.LocTimer;
+import ConsolesLocClicker.core.Stats;
+import ConsolesLocClicker.events.DefectManager;
+import ConsolesLocClicker.events.EventManager;
+import ConsolesLocClicker.events.UnexpectedEventManager;
+import ConsolesLocClicker.minigames.FrenzyQte;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -22,17 +29,17 @@ import javax.swing.UIManager;
 import javax.swing.border.Border;
 
 /** Ventana principal (Main-Class). Aquí se arma la UI y corre el reloj de 1 segundo. */
-public class Frame implements ActionListener, KeyListener {
+public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameOwner {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Frame::new);
     }
 
     // ---- Tema "terminal oscura" (Samuel: cambia los colores aquí) ----
-    protected static final Color bgColor   = new Color(13, 17, 23);
-    protected static final Color textColor = new Color(0, 255, 65);
-    protected static final Color dimColor  = new Color(80, 120, 90);
-    protected static final Color warnColor = new Color(255, 95, 86);
-    protected static final Border b = BorderFactory.createLineBorder(textColor, 1);
+    public static final Color bgColor   = new Color(13, 17, 23);
+    public static final Color textColor = new Color(0, 255, 65);
+    public static final Color dimColor  = new Color(80, 120, 90);
+    public static final Color warnColor = new Color(255, 95, 86);
+    public static final Border b = BorderFactory.createLineBorder(textColor, 1);
 
     private final JFrame frame;
     private final JTabbedPane pane;
@@ -41,10 +48,14 @@ public class Frame implements ActionListener, KeyListener {
     private final LocTimer time;
     private final ClickerPanel clicker;
     private final StorePanel store;
+    private final StaffPanel staffPanel;
     private final StatsPanel statsPanel;
     private final DevPanel dev;
     private final DefectManager defects;
+        private final EventManager events;
+    private final UnexpectedEventManager unexpectedEvents;
     private boolean ended = false;
+    private boolean gameStarted = false;
 
     public Frame() {
         Image icon = null;
@@ -78,8 +89,11 @@ public class Frame implements ActionListener, KeyListener {
         time = new LocTimer();
         clicker = new ClickerPanel(stats, icon);
         store = new StorePanel(stats, this::onPlayerAction);
+        staffPanel = new StaffPanel(stats, this::onPlayerAction);
         statsPanel = new StatsPanel(stats, time);
         defects = new DefectManager(frame, stats, this::refreshAll);
+            events = new EventManager(frame, stats, this::refreshAll);
+        unexpectedEvents = new UnexpectedEventManager(frame, stats, this::refreshAll);
         dev = new DevPanel(stats, defects);
 
         // Pantalla de juego: clicker a la izquierda, tienda a la derecha (sin cambiar de pestaña).
@@ -96,20 +110,34 @@ public class Frame implements ActionListener, KeyListener {
         pane.addKeyListener(this);
         pane.add("Terminal", game);
         pane.add("Métricas PSP", statsPanel);
-        pane.add("Info", new InfoPanel());
+        pane.add("Equipo", staffPanel);
+        pane.add("Partida", new SavePanel(stats, this::onPlayerAction));
         frame.add(pane);
         frame.setVisible(true);
 
         refresh = new javax.swing.Timer(1000, this);
+        ContextDialog.show(this, icon, this::startGame);
+    }
+
+    /** Activa el reloj y los eventos despues de que el jugador lea el contexto. */
+    private void startGame() {
+        if (gameStarted) return;
+        gameStarted = true;
         refresh.start();
         defects.start();
+        events.start();
+        unexpectedEvents.start();
     }
+
+    @Override
+    public java.awt.Frame frame() { return frame; }
 
     /** Un segundo de juego. */
     @Override
     public void actionPerformed(ActionEvent e) {
         stats.tick();
         time.tick();
+        if (stats.consumeFrenzyOpportunity()) FrenzyQte.show(frame, stats, this::refreshAll);
         refreshAll();
         checkVictory();
     }
@@ -122,6 +150,7 @@ public class Frame implements ActionListener, KeyListener {
     private void refreshAll() {
         clicker.refresh();
         store.refresh();
+        staffPanel.refresh();
         statsPanel.refresh();
     }
 
@@ -130,25 +159,34 @@ public class Frame implements ActionListener, KeyListener {
         ended = true;
         refresh.stop();
         defects.stop();
-        SwingUtilities.invokeLater(this::showVictory);
+        events.stop();
+        unexpectedEvents.stop();
+        SwingUtilities.invokeLater(this::showPhaseTransition);
     }
 
-    private void showVictory() {
+    /** Presenta el ascenso de fase; CMMI Nivel 5 es un hito, no el final. */
+    private void showPhaseTransition() {
         int secs = Math.max(1, time.getTotalSeconds());
         String msg = String.format(
-            "<html><div style='width:380px'><b>PROYECTO ENTREGADO: CMMI Nivel 5 alcanzado</b><br/><br/>"
-            + "Tiempo total: %s<br/>LOC producidas: %,d<br/>Productividad (PSP): %,d LOC/hora<br/>"
-            + "Defectos detectados: %d (parchados: %d)<br/>Densidad de defectos: %.1f def/KLOC<br/><br/>"
-            + "Bitácora PSP guardada en:<br/>%s</div></html>",
-            time, stats.getLocMade(), (int) (stats.getLocMade() * 3600.0 / secs),
-            stats.getDefectsFound(), stats.getDefectsPatched(), stats.getDefectDensity(),
-            DefectLog.FILE.getAbsolutePath());
-        Object[] options = {"Jugar de nuevo", "Salir"};
-        int r = JOptionPane.showOptionDialog(frame, msg, "Release v1.0", JOptionPane.DEFAULT_OPTION,
+            "<html><div style='width:400px'><b>FASE %d COMPLETADA: %s</b><br/><br/>"
+            + "LOC producidas: %,d<br/>Productividad (PSP): %,d LOC/hora<br/>"
+            + "Defectos: %d detectados, %d parchados<br/>Estabilidad: %d%%<br/><br/>"
+            + "La empresa escala: el siguiente proyecto exigira mas LOC y estabilidad."
+            + "</div></html>",
+            stats.getPhase(), stats.getPhaseName(),
+            stats.getLocMade(), (int) (stats.getLocMade() * 3600.0 / secs),
+            stats.getDefectsFound(), stats.getDefectsPatched(), stats.getStability());
+        Object[] options = {"Escalar empresa", "Salir"};
+        int r = JOptionPane.showOptionDialog(frame, msg, "Nueva fase", JOptionPane.DEFAULT_OPTION,
                 JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
         if (r == 0) {
-            new Frame();      // primero la nueva ventana, luego se cierra la vieja
-            frame.dispose();
+            stats.advancePhase();
+            ended = false;
+            refreshAll();
+            refresh.start();
+            defects.start();
+            events.start();
+            unexpectedEvents.startPhase();
         } else {
             System.exit(0);
         }
@@ -172,10 +210,10 @@ public class Frame implements ActionListener, KeyListener {
         button.setFocusPainted(false);
     }
 
-    // ---- Panel oculto de desarrollo: Ctrl+Enter en la pestaña Info ----
+    // ---- Panel oculto de desarrollo: Ctrl+Enter en la pestaña de metricas ----
     @Override
     public void keyReleased(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_ENTER && e.isControlDown() && pane.getSelectedIndex() == pane.indexOfTab("Info")) {
+        if (e.getKeyCode() == KeyEvent.VK_ENTER && e.isControlDown() && pane.getSelectedIndex() == pane.indexOfTab("Métricas PSP")) {
             if (pane.indexOfTab("dev") == -1) {
                 pane.add("dev", dev);
                 pane.setSelectedIndex(pane.indexOfTab("dev"));

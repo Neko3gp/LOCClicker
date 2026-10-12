@@ -1,4 +1,7 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.ui;
+
+import ConsolesLocClicker.core.GameConfig;
+import ConsolesLocClicker.core.Stats;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -62,9 +65,16 @@ public class ClickerPanel extends JPanel {
         if (stats.isFrozen()) {
             statusLabel.setForeground(Frame.warnColor);
             statusLabel.setText("[!] PRODUCCIÓN DETENIDA (" + stats.getFrozenSeconds() + " s)");
+        } else if (stats.getStability() < GameConfig.STABILITY_MIN_FOR_PHASE) {
+            statusLabel.setForeground(Frame.warnColor);
+            statusLabel.setText("[!] ESTABILIDAD CRITICA (" + stats.getStability() + "%)");
+        } else if (stats.getFrenzySeconds() > 0) {
+            statusLabel.setForeground(Frame.textColor);
+            statusLabel.setText("[+] FRENESI ACTIVO x" + GameConfig.FRENZY_PRODUCTION_MULTIPLIER
+                    + " (" + stats.getFrenzySeconds() + " s)");
         } else {
             statusLabel.setForeground(Frame.dimColor);
-            statusLabel.setText("build: OK");
+            statusLabel.setText("build: OK | estabilidad " + stats.getStability() + "%");
         }
     }
 }

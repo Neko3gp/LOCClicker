@@ -1,4 +1,8 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.ui;
+
+import ConsolesLocClicker.core.Item;
+import ConsolesLocClicker.core.Stats;
+import ConsolesLocClicker.events.DefectManager;
 
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -10,7 +14,7 @@ import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 
-/** Panel oculto para pruebas (José): Ctrl+Enter estando en la pestaña Info. */
+/** Panel oculto para pruebas (José): Ctrl+Enter estando en la pestaña de métricas. */
 public class DevPanel extends JPanel {
     public DevPanel(Stats stats, DefectManager defects) {
         setLayout(new GridLayout(0, 3));

@@ -1,4 +1,11 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.events;
+
+import ConsolesLocClicker.core.GameConfig;
+import ConsolesLocClicker.core.Stats;
+import ConsolesLocClicker.persistence.DefectLog;
+import ConsolesLocClicker.ui.Frame;
+import ConsolesLocClicker.events.catalog.RepairEvent;
+import ConsolesLocClicker.events.catalog.RepairEventCatalog;
 
 import java.awt.BorderLayout;
 import java.awt.Point;
@@ -41,6 +48,8 @@ public class DefectManager {
     private JDialog dialog;
     private Defect current;
     private String currentText;
+    private int currentLine;
+    private RepairEvent repairEvent;
     private long shownAt;
     private boolean running;
 
@@ -76,9 +85,16 @@ public class DefectManager {
 
     private void show() {
         if (!running || dialog != null || stats.isFinished()) return;
+        if (rnd.nextInt(100) >= stats.getDefectChancePercent()) {
+            schedule(GameConfig.DEFECT_MIN_DELAY_MS
+                    + rnd.nextInt(GameConfig.DEFECT_MAX_DELAY_MS - GameConfig.DEFECT_MIN_DELAY_MS + 1));
+            return;
+        }
         if (spawnTimer != null) spawnTimer.stop();
         current = rnd.nextInt(100) < 60 ? Defect.SYNTAX : Defect.SYSTEM;
-        currentText = String.format(current.text, 10 + rnd.nextInt(990));
+        currentLine = 10 + rnd.nextInt(990);
+        currentText = String.format(current.text, currentLine);
+        repairEvent = RepairEventCatalog.random(rnd);
         String penalty = current == Defect.SYNTAX
                 ? "Si no lo parchas pierdes el " + (int) (GameConfig.DEFECT20_LOSS_PCT * 100) + "% de tus LOC (o "
                   + GameConfig.DEFECT20_MIN_PRODUCTION_SECONDS + " s de producción, lo que sea mayor)."
@@ -95,7 +111,9 @@ public class DefectManager {
                 BorderFactory.createLineBorder(Frame.warnColor, 2),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
         // JTextArea (no JLabel con HTML): calcula bien su tamaño preferido y nunca recorta el texto
-        JTextArea msg = new JTextArea(currentText + "\n\n" + penalty, 6, 34);
+        JTextArea msg = new JTextArea(currentText + "\n\n" + penalty
+            + "\n\nMinijuego asignado: " + repairEvent.name()
+            + ". Debes completarlo para corregir este defecto.", 9, 52);
         msg.setEditable(false);
         msg.setFocusable(false);
         msg.setLineWrap(true);
@@ -106,17 +124,18 @@ public class DefectManager {
         JLabel countdown = new JLabel("", SwingConstants.CENTER);
         countdown.setForeground(Frame.textColor);
         countdown.setFont(Frame.font(16, true));
-        JButton patch = new JButton("Parchear");
-        Frame.buttonify(patch, 18);
-        patch.addActionListener(e -> resolve(true));
+        JButton assignedEvent = new JButton("Iniciar: " + repairEvent.name());
+        Frame.buttonify(assignedEvent, 16);
+        assignedEvent.addActionListener(e -> repairEvent.open(owner, stats, currentText, currentLine,
+            onChange, () -> resolve(true), () -> resolve(false)));
         JPanel south = new JPanel(new BorderLayout(0, 6));
         south.setOpaque(false);
         south.add(countdown, BorderLayout.NORTH);
-        south.add(patch, BorderLayout.CENTER);
+        south.add(assignedEvent, BorderLayout.CENTER);
         p.add(msg, BorderLayout.CENTER);
         p.add(south, BorderLayout.SOUTH);
         dialog.setContentPane(p);
-        dialog.pack();
+        dialog.setSize(700, 390);
         // aparece en un lugar aleatorio dentro de la ventana del juego
         Point o = owner.getLocationOnScreen();
         int x = o.x + 20 + rnd.nextInt(Math.max(1, owner.getWidth() - dialog.getWidth() - 40));
@@ -147,10 +166,12 @@ public class DefectManager {
             result = "Parchado";
         } else if (current == Defect.SYNTAX) {
             int lost = stats.loseLoc(GameConfig.DEFECT20_LOSS_PCT, GameConfig.DEFECT20_MIN_PRODUCTION_SECONDS);
+            stats.defectEscaped();
             phaseRemoved = "Escapó a producción";
             result = "Sin parchar (-" + lost + " LOC)";
         } else {
             stats.freezeProduction(GameConfig.DEFECT90_FREEZE_SECONDS);
+            stats.defectEscaped();
             phaseRemoved = "Escapó a producción";
             result = "Sin parchar (producción detenida " + GameConfig.DEFECT90_FREEZE_SECONDS + " s)";
         }

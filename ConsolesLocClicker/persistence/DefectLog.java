@@ -1,4 +1,4 @@
-package ConsolesLocClicker;
+package ConsolesLocClicker.persistence;
 
 import java.io.File;
 import java.io.FileOutputStream;
