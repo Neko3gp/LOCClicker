@@ -1,11 +1,6 @@
 package ConsolesLocClicker.core;
 
-/**
- * TODA la configuración del juego en un solo lugar.
- * - Carlos (Lógica de Negocio): edita los números de balanceo.
- * - Samuel (UI): edita los textos.
- * - José (Calidad): cambia los tiempos de los defectos para pruebas de estrés.
- */
+
 public final class GameConfig {
     private GameConfig() {}
 

@@ -1,10 +1,12 @@
 package ConsolesLocClicker.ui;
 
+import ConsolesLocClicker.audio.SoundManager;
 import ConsolesLocClicker.core.GameConfig;
 import ConsolesLocClicker.core.Item;
 import ConsolesLocClicker.core.Stats;
 
 import java.awt.GridLayout;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
@@ -19,7 +21,7 @@ public class StorePanel extends JPanel {
         this.stats = stats;
         setBackground(Frame.bgColor);
         setLayout(new GridLayout(0, 1, 0, 6));
-        setBorder(Frame.b);
+        setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
         Item[] producers = stats.getProducers();
         producerButtons = new JButton[producers.length];
@@ -28,19 +30,34 @@ public class StorePanel extends JPanel {
             JButton b = new JButton();
             Frame.buttonify(b, 13);
             b.setToolTipText(tooltip(producers[i].getDescription()));
-            b.addActionListener(e -> { stats.buyProducer(index); onPurchase.run(); });
+            b.addActionListener(e -> {
+                if (stats.buyProducer(index)) {
+                    SoundManager.playUpgrade();
+                }
+                onPurchase.run();
+            });
             producerButtons[i] = b;
             add(b);
         }
         keyboardButton = new JButton();
         Frame.buttonify(keyboardButton, 13);
         keyboardButton.setToolTipText(tooltip(stats.getKeyboard().getDescription()));
-        keyboardButton.addActionListener(e -> { stats.buyKeyboard(); onPurchase.run(); });
+        keyboardButton.addActionListener(e -> {
+            if (stats.buyKeyboard()) {
+                SoundManager.playUpgrade();
+            }
+            onPurchase.run();
+        });
         add(keyboardButton);
         qualityButton = new JButton();
         Frame.buttonify(qualityButton, 13);
         qualityButton.setToolTipText(tooltip(stats.getQuality().getDescription()));
-        qualityButton.addActionListener(e -> { stats.buyQuality(); onPurchase.run(); });
+        qualityButton.addActionListener(e -> {
+            if (stats.buyQuality()) {
+                SoundManager.playUpgrade();
+            }
+            onPurchase.run();
+        });
         add(qualityButton);
         refresh();
     }

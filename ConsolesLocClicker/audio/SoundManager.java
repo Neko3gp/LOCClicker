@@ -26,13 +26,17 @@ public final class SoundManager {
     public static final double SLOW_SPEED   = 0.75;
 
     private static final int CLICK_POOL_SIZE = 6;
-    private static final int UPGRADE_POOL_SIZE = 2;
+    private static final int EQUIPMENT_POOL_SIZE = 2;
+    private static final int UPGRADE_POOL_SIZE = 4;
 
     private static Clip[] clickClips;
     private static int clickIndex = 0;
 
     private static Clip[] equipmentClips;
     private static int equipmentIndex = 0;
+
+    private static Clip[] upgradeClips;
+    private static int upgradeIndex = 0;
 
     // Estado de la música
     private static volatile boolean bgmRunning = false;
@@ -82,8 +86,8 @@ public final class SoundManager {
             AudioFormat stereo16 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
             byte[] equipData = loadPcmBytes("equipment_upgrade.wav", stereo16);
             if (equipData != null) {
-                equipmentClips = new Clip[UPGRADE_POOL_SIZE];
-                for (int i = 0; i < UPGRADE_POOL_SIZE; i++) {
+                equipmentClips = new Clip[EQUIPMENT_POOL_SIZE];
+                for (int i = 0; i < EQUIPMENT_POOL_SIZE; i++) {
                     Clip c = AudioSystem.getClip();
                     c.open(new AudioInputStream(new ByteArrayInputStream(equipData), stereo16, equipData.length / stereo16.getFrameSize()));
                     equipmentClips[i] = c;
@@ -91,6 +95,21 @@ public final class SoundManager {
             }
         } catch (Throwable t) {
             System.err.println("Aviso: No se pudo cargar equipment_upgrade.wav: " + t.getMessage());
+        }
+
+        try {
+            AudioFormat stereo16 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
+            byte[] upData = loadPcmBytes("upgrade.wav", stereo16);
+            if (upData != null) {
+                upgradeClips = new Clip[UPGRADE_POOL_SIZE];
+                for (int i = 0; i < UPGRADE_POOL_SIZE; i++) {
+                    Clip c = AudioSystem.getClip();
+                    c.open(new AudioInputStream(new ByteArrayInputStream(upData), stereo16, upData.length / stereo16.getFrameSize()));
+                    upgradeClips[i] = c;
+                }
+            }
+        } catch (Throwable t) {
+            System.err.println("Aviso: No se pudo cargar upgrade.wav: " + t.getMessage());
         }
     }
 
@@ -186,6 +205,25 @@ public final class SoundManager {
                 equipmentIndex = (equipmentIndex + 1) % equipmentClips.length;
             }
             Clip c = equipmentClips[idx];
+            if (c != null) {
+                if (c.isRunning()) c.stop();
+                c.setFramePosition(0);
+                c.start();
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /** Reproduce el sonido al comprar mejoras en la tienda (upgrade.wav). */
+    public static void playUpgrade() {
+        if (!initialized) init();
+        if (upgradeClips == null || upgradeClips.length == 0) return;
+        try {
+            int idx;
+            synchronized (SoundManager.class) {
+                idx = upgradeIndex;
+                upgradeIndex = (upgradeIndex + 1) % upgradeClips.length;
+            }
+            Clip c = upgradeClips[idx];
             if (c != null) {
                 if (c.isRunning()) c.stop();
                 c.setFramePosition(0);

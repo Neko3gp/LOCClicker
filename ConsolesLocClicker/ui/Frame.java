@@ -97,24 +97,26 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
         unexpectedEvents = new UnexpectedEventManager(frame, stats, this::refreshAll);
         dev = new DevPanel(stats, defects);
 
-        // Pantalla de juego: clicker a la izquierda, tienda a la derecha (sin cambiar de pestaña).
-        JPanel game = new JPanel(new BorderLayout(8, 0));
-        game.setBackground(bgColor);
-        game.add(clicker, BorderLayout.CENTER);
-        store.setPreferredSize(new Dimension(470, 0));
-        game.add(store, BorderLayout.EAST);
+        // Terminal de escritura a la izquierda, todas las pestañas concentradas a la derecha
+        clicker.setPreferredSize(new Dimension(440, 0));
 
         pane = new JTabbedPane();
         pane.setBackground(bgColor);
         pane.setForeground(textColor);
         pane.setFont(font(14, true));
         pane.addKeyListener(this);
-        pane.add("Terminal", game);
-        pane.add("Métricas PSP", statsPanel);
+        pane.add("Mejoras", store);
         pane.add("Equipo", staffPanel);
+        pane.add("Métricas PSP", statsPanel);
         pane.add("Partida", new SavePanel(stats, this::onPlayerAction));
         pane.addChangeListener(e -> SoundManager.playClick());
-        frame.add(pane);
+
+        JPanel contentPane = (JPanel) frame.getContentPane();
+        contentPane.setLayout(new BorderLayout(8, 0));
+        contentPane.setBackground(bgColor);
+        contentPane.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        contentPane.add(clicker, BorderLayout.WEST);
+        contentPane.add(pane, BorderLayout.CENTER);
         frame.setVisible(true);
 
         SoundManager.init();
@@ -226,7 +228,7 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
                 pane.add("dev", dev);
                 pane.setSelectedIndex(pane.indexOfTab("dev"));
             } else {
-                pane.setSelectedIndex(pane.indexOfTab("Terminal"));
+                pane.setSelectedIndex(pane.indexOfTab("Mejoras"));
                 pane.remove(pane.indexOfTab("dev"));
             }
         }

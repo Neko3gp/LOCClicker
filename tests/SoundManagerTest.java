@@ -20,9 +20,11 @@ public class SoundManagerTest {
             SoundManager.playClick();
             System.out.println("PASS: playClick ejecutado");
 
-            // 2. Probar sonido de mejora de equipo
+            // 2. Probar sonido de mejora de equipo y mejora de tienda
             SoundManager.playEquipmentUpgrade();
             System.out.println("PASS: playEquipmentUpgrade ejecutado");
+            SoundManager.playUpgrade();
+            System.out.println("PASS: playUpgrade ejecutado");
 
             // 3. Probar lógica de velocidades de música
             SoundManager.setFever(false);
