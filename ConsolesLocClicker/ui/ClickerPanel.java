@@ -1,5 +1,6 @@
 package ConsolesLocClicker.ui;
 
+import ConsolesLocClicker.audio.SoundManager;
 import ConsolesLocClicker.core.GameConfig;
 import ConsolesLocClicker.core.Stats;
 
@@ -43,6 +44,7 @@ public class ClickerPanel extends JPanel {
         restoreIcon.setRepeats(false);
         clicker.addActionListener(e -> {
             stats.click();
+            SoundManager.playClick();
             clicker.setIcon(smallIcon);
             restoreIcon.restart();
             refresh();

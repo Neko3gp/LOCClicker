@@ -86,3 +86,5 @@ Fecha,No,Tipo,Fase_Inyeccion,Fase_Remocion,Tiempo_Correccion_s,Descripcion
 2026-10-11 22:24:01,10,"20 Sintaxis","Codificación","Escapó a producción",10.0,"Error de compilación: falta un ';' en la línea 391. -> Sin parchar (-85590 LOC)"
 2026-10-11 22:25:14,11,"90 Sistema","Codificación","Escapó a producción",10.0,"Falla de integración: el servidor de build dejó de responder. -> Sin parchar (producción detenida 8 s)"
 2026-10-11 22:26:52,12,"20 Sintaxis","Codificación","Compilación",3.0,"Error de compilación: falta un ';' en la línea 886. -> Parchado"
+2026-10-14 11:56:49,1,"90 Sistema","Codificación","Pruebas de sistema",2.6,"Falla de integración: el servidor de build dejó de responder. -> Parchado"
+2026-10-14 11:57:26,2,"90 Sistema","Codificación","Pruebas de sistema",4.4,"Falla de integración: el servidor de build dejó de responder. -> Parchado"

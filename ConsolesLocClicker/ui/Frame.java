@@ -1,5 +1,6 @@
 package ConsolesLocClicker.ui;
 
+import ConsolesLocClicker.audio.SoundManager;
 import ConsolesLocClicker.core.LocTimer;
 import ConsolesLocClicker.core.Stats;
 import ConsolesLocClicker.events.DefectManager;
@@ -112,9 +113,11 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
         pane.add("Métricas PSP", statsPanel);
         pane.add("Equipo", staffPanel);
         pane.add("Partida", new SavePanel(stats, this::onPlayerAction));
+        pane.addChangeListener(e -> SoundManager.playClick());
         frame.add(pane);
         frame.setVisible(true);
 
+        SoundManager.init();
         refresh = new javax.swing.Timer(1000, this);
         ContextDialog.show(this, icon, this::startGame);
     }
@@ -127,6 +130,7 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
         defects.start();
         events.start();
         unexpectedEvents.start();
+        SoundManager.startBgm();
     }
 
     @Override
@@ -148,6 +152,7 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
     }
 
     private void refreshAll() {
+        SoundManager.setFever(stats.getFrenzySeconds() > 0);
         clicker.refresh();
         store.refresh();
         staffPanel.refresh();
@@ -161,6 +166,8 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
         defects.stop();
         events.stop();
         unexpectedEvents.stop();
+        SoundManager.setFever(false);
+        SoundManager.setBugEvent(false);
         SwingUtilities.invokeLater(this::showPhaseTransition);
     }
 
@@ -188,6 +195,7 @@ public class Frame implements ActionListener, KeyListener, ContextDialog.JFrameO
             events.start();
             unexpectedEvents.startPhase();
         } else {
+            SoundManager.stopBgm();
             System.exit(0);
         }
     }

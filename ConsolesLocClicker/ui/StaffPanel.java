@@ -1,5 +1,6 @@
 package ConsolesLocClicker.ui;
 
+import ConsolesLocClicker.audio.SoundManager;
 import ConsolesLocClicker.core.GameConfig;
 import ConsolesLocClicker.core.Item;
 import ConsolesLocClicker.core.Stats;
@@ -30,9 +31,13 @@ public class StaffPanel extends JPanel {
             Frame.buttonify(button, 14);
             button.setToolTipText("Mejora permanente para la fase actual");
             button.addActionListener(e -> {
-                if (index == 0) stats.buyComputer();
-                else if (index == 1) stats.buyTraining();
-                else stats.buyRetention();
+                boolean bought;
+                if (index == 0) bought = stats.buyComputer();
+                else if (index == 1) bought = stats.buyTraining();
+                else bought = stats.buyRetention();
+                if (bought) {
+                    SoundManager.playEquipmentUpgrade();
+                }
                 onPurchase.run();
             });
             upgradeButtons[i] = button;

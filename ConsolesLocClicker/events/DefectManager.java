@@ -1,5 +1,6 @@
 package ConsolesLocClicker.events;
 
+import ConsolesLocClicker.audio.SoundManager;
 import ConsolesLocClicker.core.GameConfig;
 import ConsolesLocClicker.core.Stats;
 import ConsolesLocClicker.persistence.DefectLog;
@@ -66,6 +67,7 @@ public class DefectManager {
 
     public void stop() {
         running = false;
+        SoundManager.setBugEvent(false);
         if (spawnTimer != null) spawnTimer.stop();
         if (countdownTimer != null) countdownTimer.stop();
         if (dialog != null) { dialog.dispose(); dialog = null; }
@@ -143,6 +145,7 @@ public class DefectManager {
         dialog.setLocation(x, y);
 
         shownAt = System.currentTimeMillis();
+        SoundManager.setBugEvent(true);
         countdownTimer = new Timer(100, e -> {
             long left = GameConfig.DEFECT_DEADLINE_MS - (System.currentTimeMillis() - shownAt);
             if (left <= 0) resolve(false);
@@ -155,6 +158,7 @@ public class DefectManager {
     private void resolve(boolean patched) {
         if (dialog == null) return;  // ya se resolvió (doble clic, etc.)
         countdownTimer.stop();
+        SoundManager.setBugEvent(false);
         double fixSeconds = Math.min(System.currentTimeMillis() - shownAt, GameConfig.DEFECT_DEADLINE_MS) / 1000.0;
         dialog.dispose();
         dialog = null;
